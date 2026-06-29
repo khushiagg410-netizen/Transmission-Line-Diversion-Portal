@@ -1,0 +1,545 @@
+﻿@inject AppDbContext _context
+@inject NavigationManager Navigation
+@inject IWebHostEnvironment Environment
+@page "/transmission-diversion"
+@rendermode InteractiveServer
+
+@using form_using_blazor.Models
+@using form_using_blazor.Data
+@using Microsoft.AspNetCore.Components.Forms
+
+@inject AppDbContext _context
+
+<div class="container mt-4">
+    <div class="row mb-4">
+
+        <div class="col-md-3">
+            <div class="card text-white bg-primary shadow">
+                <div class="card-body text-center">
+                    <h5>Total Requests</h5>
+                    <h2>@totalRequests</h2>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card text-dark bg-warning shadow">
+                <div class="card-body text-center">
+                    <h5>Pending</h5>
+                    <h2>@pendingRequests</h2>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card text-white bg-success shadow">
+                <div class="card-body text-center">
+                    <h5>Approved</h5>
+                    <h2>@approvedRequests</h2>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card text-white bg-danger shadow">
+                <div class="card-body text-center">
+                    <h5>Rejected</h5>
+                    <h2>@rejectedRequests</h2>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="card shadow">
+
+        <div class="card-header bg-primary text-white text-center">
+            <h3>Transmission Line Diversion Request</h3>
+        </div>
+
+        <div class="card-body">
+
+            <EditForm Model="@request"
+                      OnValidSubmit="SaveRequest"
+                      FormName="TransmissionForm">
+
+                <DataAnnotationsValidator />
+                <ValidationSummary />
+
+                <div class="mb-3">
+                    <label class="form-label">Client Name *</label>
+                    <InputText class="form-control"
+                               @bind-Value="request.ClientName" />
+                    <ValidationMessage For="@(() => request.ClientName)" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Project Details *</label>
+                    <InputTextArea class="form-control"
+                                   rows="4"
+                                   @bind-Value="request.ProjectDetails" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Lines To Be Diverted *</label>
+                    <InputTextArea class="form-control"
+                                   rows="4"
+                                   @bind-Value="request.LinesToBeDiverted" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Work Type *</label>
+
+                    <InputSelect class="form-select"
+                                 @bind-Value="request.WorkType">
+
+                        <option value="">Select Work Type</option>
+                        <option value="Cost Plus 15%">Cost Plus 15%</option>
+                        <option value="Supervision 2.5%">Supervision 2.5%</option>
+
+                    </InputSelect>
+                </div>
+
+                <div class="row">
+
+                    <div class="col-md-6">
+                        <label class="form-label">
+                            Date Of Request
+                        </label>
+
+                        <InputDate class="form-control"
+                                   @bind-Value="request.DateOfRequest" />
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label">
+                            Timeline Requirement
+                        </label>
+
+                        <InputText class="form-control"
+                                   @bind-Value="request.TimelineRequirement" />
+                        <ValidationMessage For="@(() => request.TimelineRequirement)" />
+                    </div>
+
+                </div>
+
+                <hr />
+
+                <div class="mb-3">
+                    <label class="form-label">
+                        Project Location
+                    </label>
+
+                    <InputText class="form-control"
+                               @bind-Value="request.ProjectLocation" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">
+                        Contact Person
+                    </label>
+
+                    <InputText class="form-control"
+                               @bind-Value="request.ContactPerson" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">
+                        Contact Number
+                    </label>
+
+                    <InputText class="form-control"
+                               @bind-Value="request.ContactNumber" />
+                    <ValidationMessage For="@(() => request.ContactNumber)" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">
+                        Email
+                    </label>
+
+                    <InputText class="form-control"
+                               @bind-Value="request.Email" />
+                    <ValidationMessage For="@(() => request.Email)" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">
+                        Signed Letter (.PDF, Max 5 MB)
+                    </label>
+
+                    <InputFile OnChange="UploadPdf" />
+
+                    @if (!string.IsNullOrEmpty(uploadedFileName))
+                    {
+                        <div class="text-success mt-2">
+                            Selected File: @uploadedFileName
+                        </div>
+                    }
+                    else if (request.PDFEntry != null)
+                    {
+                        <div class="text-primary mt-2">
+                            PDF already attached (DocId: @request.PDFEntry)
+                        </div>
+                    }
+                </div>
+
+
+                <div class="mb-3">
+                    <label class="form-label">
+                        Remarks
+                    </label>
+
+                    <InputTextArea class="form-control"
+                                   rows="3"
+                                   @bind-Value="request.Remarks" />
+                </div>
+
+                <button type="submit"
+                        class="btn btn-primary">
+
+                    @(isEditMode ? "Update Request" : "Submit Request")
+
+                </button>
+
+            </EditForm>
+
+            @if (!string.IsNullOrEmpty(message))
+            {
+                <div class="alert alert-success mt-3">
+                    @message
+                </div>
+            }
+
+            <hr />
+
+            <h4>Submitted Requests</h4>
+
+            <table class="table table-bordered table-striped">
+
+                <thead class="table-dark">
+                    <tr>
+                        <th>ID</th>
+                        <th>Client Name</th>
+                        <th>Work Type</th>
+                        <th>Status</th>
+                        <th>PDF</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+
+                    @foreach (var item in requests)
+                    {
+                        <tr>
+                            <td>@item.RequestId</td>
+                            <td>@item.ClientName</td>
+                            <td>@item.WorkType</td>
+                            <td>
+
+                                @if (item.RequestStatus == "Pending")
+                                {
+                                    <span class="badge bg-warning text-dark">
+                                        Pending
+                                    </span>
+                                }
+                                else if (item.RequestStatus == "Approved")
+                                {
+                                    <span class="badge bg-success">
+                                        Approved
+                                    </span>
+                                }
+                                else if (item.RequestStatus == "Rejected")
+                                {
+                                    <span class="badge bg-danger">
+                                        Rejected
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-secondary">
+                                        @item.RequestStatus
+                                    </span>
+                                }
+
+                            </td>
+
+                            <td>
+                                @if (item.PDFEntry != null)
+                                {
+                                    <button class="btn btn-success btn-sm"
+                                            @onclick="() => ViewPdf(item.PDFEntry.Value)">
+                                        View PDF
+                                    </button>
+                                }
+                            </td>
+
+                            <td>
+
+                                <button class="btn btn-success btn-sm me-1"
+                                        @onclick="() => ApproveRequest(item.RequestId)">
+                                    Approve
+                                </button>
+
+                                <button class="btn btn-secondary btn-sm me-1"
+                                        @onclick="() => RejectRequest(item.RequestId)">
+                                    Reject
+                                </button>
+
+                                <button class="btn btn-warning btn-sm me-1"
+                                        @onclick="() => LoadRequest(item.RequestId)">
+                                    Edit
+                                </button>
+
+                                <button class="btn btn-danger btn-sm"
+                                        @onclick="() => DeleteRequest(item.RequestId)">
+                                    Delete
+                                </button>
+
+                            </td>
+                        </tr>
+                    }
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </div>
+
+</div>
+
+@code {
+    private bool isEditMode = false;
+    private string uploadedFileName = "";
+    private int? uploadedDocId;
+    private string message = "";
+    
+
+    private List<TransmissionLineDiversionRequest> requests = new();
+    private int totalRequests;
+    private int pendingRequests;
+    private int approvedRequests;
+    private int rejectedRequests;
+    
+    protected override void OnInitialized()
+    {
+        requests = _context
+            .TransmissionLineDiversionRequests
+            .ToList();
+
+        LoadDashboard();
+    }
+    private void LoadDashboard()
+    {
+        totalRequests = _context.TransmissionLineDiversionRequests.Count();
+
+        pendingRequests = _context.TransmissionLineDiversionRequests
+            .Count(x => x.RequestStatus == "Pending");
+
+        approvedRequests = _context.TransmissionLineDiversionRequests
+            .Count(x => x.RequestStatus == "Approved");
+
+        rejectedRequests = _context.TransmissionLineDiversionRequests
+            .Count(x => x.RequestStatus == "Rejected");
+    }
+
+    
+
+    private TransmissionLineDiversionRequest request =
+        new TransmissionLineDiversionRequest
+        {
+            DateOfRequest = DateTime.Today
+        };
+
+    private async Task SaveRequest()
+    {
+        if (isEditMode)
+        {
+            // If user uploaded a new PDF while editing
+            if (uploadedDocId != null)
+            {
+                request.PDFEntry = uploadedDocId;
+            }
+
+            _context.TransmissionLineDiversionRequests.Update(request);
+
+            await _context.SaveChangesAsync();
+
+            message = "Request Updated Successfully.";
+
+            isEditMode = false;
+        }
+        else
+        {
+            request.RequestStatus = "Pending";
+
+            request.PDFEntry = uploadedDocId;
+
+            _context.TransmissionLineDiversionRequests.Add(request);
+
+            await _context.SaveChangesAsync();
+
+            message = "Request Saved Successfully.";
+        }
+
+        requests = _context
+            .TransmissionLineDiversionRequests
+            .ToList();
+        LoadDashboard();
+
+        uploadedFileName = "";
+        uploadedDocId = null;
+
+        request = new TransmissionLineDiversionRequest
+        {
+            DateOfRequest = DateTime.Today
+        };
+    }
+    private async Task UploadPdf(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+
+        long maxFileSize = 5 * 1024 * 1024;
+
+        if (file.Size > maxFileSize)
+        {
+            message = "File size cannot exceed 5 MB.";
+            return;
+        }
+
+        if (file.ContentType != "application/pdf")
+        {
+            message = "Only PDF files are allowed.";
+            return;
+        }
+
+        var guid = Guid.NewGuid();
+
+        string extension = Path.GetExtension(file.Name);
+
+        string savedFileName = $"{guid}{extension}";
+
+        string uploadPath = Path.Combine(
+            Environment.WebRootPath,
+            "uploads",
+            savedFileName);
+
+        await using var stream =
+            new FileStream(uploadPath, FileMode.Create);
+
+        await file.OpenReadStream(maxFileSize)
+                  .CopyToAsync(stream);
+
+        uploadedFileName = file.Name;
+        var document = new Documents
+        {
+            GUID = guid,
+            DocName = file.Name,
+
+            FilePath = savedFileName,
+
+            DocType = "Signed Letter",
+            Extension = extension,
+            ContentType = file.ContentType,
+            FileSize = file.Size,
+            Status = "Active",
+
+            InsertedBy = "Khushi",
+            InsertedOn = DateTime.Now,
+            InsertedFrom = "Blazor"
+        };
+
+        _context.Documents.Add(document);
+
+        await _context.SaveChangesAsync();
+
+        uploadedDocId = document.DocId;
+
+        message =
+    $"PDF Uploaded Successfully. DocId = {document.DocId}";
+    }
+    private void ViewPdf(int docId)
+    {
+        var document = _context.Documents
+                               .FirstOrDefault(x => x.DocId == docId);
+
+        if (document != null)
+        {
+            Navigation.NavigateTo(
+                $"/uploads/{document.FilePath}",
+                true);
+        }
+    }
+    private async Task DeleteRequest(int id)
+    {
+        var requestToDelete = _context
+            .TransmissionLineDiversionRequests
+            .FirstOrDefault(x => x.RequestId == id);
+
+        if (requestToDelete != null)
+        {
+            _context.TransmissionLineDiversionRequests
+                    .Remove(requestToDelete);
+
+            await _context.SaveChangesAsync();
+
+            requests = _context
+                .TransmissionLineDiversionRequests
+                .ToList();
+            LoadDashboard();
+
+            message = "Request deleted successfully.";
+        }
+    }
+    private void LoadRequest(int id)
+    {
+        var data = _context
+            .TransmissionLineDiversionRequests
+            .FirstOrDefault(x => x.RequestId == id);
+
+        if (data != null)
+        {
+            request = data;
+            uploadedDocId = request.PDFEntry;
+            isEditMode = true;
+        }
+    }
+    private async Task ApproveRequest(int id)
+    {
+        var req = _context.TransmissionLineDiversionRequests
+                          .FirstOrDefault(x => x.RequestId == id);
+
+        if (req != null)
+        {
+            req.RequestStatus = "Approved";
+
+            await _context.SaveChangesAsync();
+
+            requests = _context.TransmissionLineDiversionRequests.ToList();
+
+            LoadDashboard();
+
+            message = "Request Approved Successfully.";
+        }
+    }
+    private async Task RejectRequest(int id)
+    {
+        var req = _context.TransmissionLineDiversionRequests
+                          .FirstOrDefault(x => x.RequestId == id);
+
+        if (req != null)
+        {
+            req.RequestStatus = "Rejected";
+
+            await _context.SaveChangesAsync();
+
+            requests = _context.TransmissionLineDiversionRequests.ToList();
+
+            LoadDashboard();
+
+            message = "Request Rejected Successfully.";
+        }
+    }
+}
